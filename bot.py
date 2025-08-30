@@ -1,7 +1,6 @@
 import logging
 import sqlite3
 import random
-from datetime import time
 from telegram import (
     Update,
     ReplyKeyboardMarkup,
@@ -18,7 +17,7 @@ from telegram.ext import (
     ContextTypes,
 )
 
-# --- ЛОГІ ---
+# --- ЛОГІ --- 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
@@ -26,12 +25,12 @@ logger = logging.getLogger(__name__)
 
 DB_FILE = "bot.db"
 
-# --- СТАНИ ДЛЯ КОНВЕРСАЦІЙ ---
+# --- СТАНИ ДЛЯ КОНВЕРСАЦІЙ --- 
 ADD_EN, ADD_UA = range(2)
 QUIZ, QUIZ_INPUT = range(2)
 SET_TIME = 1
 
-# --- ІНІЦІАЛІЗАЦІЯ БАЗИ ---
+# --- ІНІЦІАЛІЗАЦІЯ БАЗИ --- 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -69,24 +68,8 @@ def init_db():
     conn.commit()
     conn.close()
 
-# --- ФУНКЦІЯ ПІДРАХУНКУ СТАТИСТИКИ ---
-async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
 
-    # Отримати статистику
-    c.execute("SELECT key, value FROM stats")
-    stats = c.fetchall()
-    conn.close()
-
-    if not stats:
-        await update.message.reply_text("Немає статистики.")
-        return
-
-    stats_text = "\n".join([f"{key}: {value}" for key, value in stats])
-    await update.message.reply_text(f"📊 Статистика:\n\n{stats_text}")
-
-# --- ГОЛОВНЕ МЕНЮ ---
+# --- ГОЛОВНЕ МЕНЮ --- 
 def main_menu():
     return ReplyKeyboardMarkup(
         [
@@ -97,15 +80,18 @@ def main_menu():
         resize_keyboard=True,
     )
 
-# --- ДОБАВИТИ СЛОВО ---
+
+# --- ДОБАВИТИ СЛОВО --- 
 async def add_word_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Введіть слово англійською:")
     return ADD_EN
+
 
 async def add_word_en(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["en"] = update.message.text.strip()
     await update.message.reply_text("Введіть переклад українською:")
     return ADD_UA
+
 
 async def add_word_ua(update: Update, context: ContextTypes.DEFAULT_TYPE):
     en = context.user_data["en"]
@@ -121,7 +107,8 @@ async def add_word_ua(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Слово додано: {en} → {ua}", reply_markup=main_menu())
     return ConversationHandler.END
 
-# --- ВИДАЛЕННЯ ---
+
+# --- ВИДАЛЕННЯ --- 
 async def delete_word(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -138,6 +125,7 @@ async def delete_word(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     await update.message.reply_text("Виберіть слово для видалення:", reply_markup=InlineKeyboardMarkup(keyboard))
 
+
 async def delete_word_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -151,7 +139,8 @@ async def delete_word_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await query.edit_message_text("✅ Слово видалено.")
 
-# --- ПОКАЗАТИ ВСІ СЛОВА ---
+
+# --- ПОКАЗАТИ ВСІ СЛОВА --- 
 async def show_words(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -166,7 +155,8 @@ async def show_words(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = "\n".join([f"{en} → {ua}" for en, ua in words])
     await update.message.reply_text("📚 Ваш словник:\n\n" + text)
 
-# --- ВІКТОРИНА ---
+
+# --- ВІКТОРИНА --- 
 async def quiz_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -193,6 +183,7 @@ async def quiz_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Виберіть рівень складності:\n1️⃣ Легкий (2 варіанти)\n2️⃣ Середній (4 варіанти)\n3️⃣ Важкий (введення вручну)"
     )
     return QUIZ
+
 
 async def quiz_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
     level = update.message.text.strip()
@@ -236,6 +227,7 @@ async def quiz_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     return ConversationHandler.END
 
+
 async def quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -255,6 +247,7 @@ async def quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
         conn.close()
         await query.edit_message_text(f"❌ Неправильно. Правильна відповідь: {correct}")
+
 
 async def quiz_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     answer = update.message.text.strip()
@@ -276,79 +269,72 @@ async def quiz_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     return ConversationHandler.END
 
-# --- СЛОВО ДНЯ ---
-async def send_daily_word(context: ContextTypes.DEFAULT_TYPE):
+
+# --- НАЛАШТУВАННЯ --- 
+async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [
+            InlineKeyboardButton("Змінити напрямок перекладу", callback_data="change_direction"),
+        ],
+        [
+            InlineKeyboardButton("Обнулити статистику", callback_data="reset_stats"),
+        ],
+        [
+            InlineKeyboardButton("Видалити всі слова", callback_data="delete_all_words"),
+        ],
+        [
+            InlineKeyboardButton("Назад до головного меню", callback_data="back_to_main"),
+        ]
+    ]
+    await update.message.reply_text("⚙️ Налаштування:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+
+# --- ОБНУЛЕННЯ СТАТИСТИКИ ---
+async def reset_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    c.execute("SELECT user_id, daily_time FROM users")
-    users = c.fetchall()
+    c.execute("UPDATE stats SET value = 0 WHERE key IN ('words_added', 'correct_answers', 'total_answers')")
+    conn.commit()
     conn.close()
 
-    for user_id, daily_time in users:
-        now = time.today()
-        target_time = time.fromisoformat(daily_time)
+    await query.edit_message_text("✅ Статистику було обнулено.")
 
-        if now >= target_time:
-            await context.bot.send_message(user_id, "🔔 Ваше слово дня!")
 
-            # Відправити випадкове слово
-            conn = sqlite3.connect(DB_FILE)
-            c = conn.cursor()
-            c.execute("SELECT en, ua FROM words ORDER BY RANDOM() LIMIT 1")
-            word = c.fetchone()
-            conn.close()
+# --- ВИДАЛИТИ ВСІ СЛОВА ---
+async def delete_all_words(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
 
-            if word:
-                en, ua = word
-                await context.bot.send_message(user_id, f"{en} → {ua}")
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
+    c.execute("DELETE FROM words")
+    conn.commit()
+    conn.close()
 
-# --- ГОЛОВНА ФУНКЦІЯ ---
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Вітаю! Я ваш віртуальний помічник.", reply_markup=main_menu())
+    await query.edit_message_text("✅ Всі слова були видалені.")
 
+
+# --- ГОЛОВНА ФУНКЦІЯ --- 
 def main():
-    # Ініціалізація БД
     init_db()
+    application = Application.builder().token("8246569607:AAEaLgo6bLYTUV3oq98mRrXWn58XWKbJT48").build()
 
-    application = Application.builder().token("YOUR_BOT_TOKEN").build()
-
-    # Старт /help команда
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help))
 
-    # Додавання слова
-    add_word_handler = ConversationHandler(
-        entry_points=[CommandHandler("add", add_word_start)],
-        states={
-            ADD_EN: [MessageHandler(filters.TEXT, add_word_en)],
-            ADD_UA: [MessageHandler(filters.TEXT, add_word_ua)],
-        },
-        fallbacks=[],
-    )
-    application.add_handler(add_word_handler)
-
-    # Вікторина
-    quiz_handler = ConversationHandler(
-        entry_points=[CommandHandler("quiz", quiz_start)],
+    conversation_handler = ConversationHandler(
+        entry_points=[MessageHandler(filters.TEXT & ~filters.COMMAND, start_quiz)],
         states={
             QUIZ: [MessageHandler(filters.TEXT, quiz_question)],
-            QUIZ_INPUT: [MessageHandler(filters.TEXT, quiz_input)],
+            QUIZ_INPUT: [MessageHandler(filters.TEXT, quiz_answer)],
         },
-        fallbacks=[CallbackQueryHandler(quiz_answer)],
+        fallbacks=[MessageHandler(filters.TEXT, start)],
     )
-    application.add_handler(quiz_handler)
 
-    # Показати слова
-    application.add_handler(CommandHandler("show", show_words))
-
-    # Видалити слово
-    application.add_handler(CommandHandler("delete", delete_word))
-
-    # Статистика
-    application.add_handler(CommandHandler("stats", show_stats))
-
-    # Щоденне повідомлення
-    application.job_queue.run_daily(send_daily_word, time=time(10, 0))
-
+    application.add_handler(conversation_handler)
     application.run_polling()
 
 if __name__ == "__main__":
