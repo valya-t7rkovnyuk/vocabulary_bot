@@ -27,8 +27,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ================= Config =================
-TOKEN = os.getenv("BOT_TOKEN")            # set in Render env
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")    # like https://your-app.onrender.com (no trailing slash)
+TOKEN = os.getenv("BOT_TOKEN")            # Render → Environment → BOT_TOKEN
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")    # Render → Environment → WEBHOOK_URL (https://your-app.onrender.com)
 PORT = int(os.getenv("PORT", 5000))
 
 if not TOKEN:
@@ -65,7 +65,7 @@ def init_db():
             value INTEGER
         )"""
     )
-    # Users table (no daily_time)
+    # Users table
     c.execute(
         """CREATE TABLE IF NOT EXISTS users (
             user_id INTEGER PRIMARY KEY,
@@ -424,5 +424,5 @@ if __name__ == "__main__":
 
     asyncio.get_event_loop().run_until_complete(bootstrap())
 
-    # Run Flask (does not block PTB)
+    # Run Flask
     flask_app.run(host="0.0.0.0", port=PORT)
