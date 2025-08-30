@@ -18,7 +18,7 @@ from telegram.ext import (
     ContextTypes,
 )
 
-# --- ЛОГІ ---
+# --- ЛОГІ --- 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
@@ -26,12 +26,12 @@ logger = logging.getLogger(__name__)
 
 DB_FILE = "bot.db"
 
-# --- СТАНИ ДЛЯ КОНВЕРСАЦІЙ ---
-ADD_EN, ADD_UA = range(2)
-QUIZ, QUIZ_INPUT = range(2)
+# --- СТАНИ ДЛЯ КОНВЕРСАЦІЙ --- 
+ADD_EN, ADD_UA = range(2) 
+QUIZ, QUIZ_INPUT = range(2) 
 SET_TIME = 1
 
-# --- ІНІЦІАЛІЗАЦІЯ БАЗИ ---
+# --- ІНІЦІАЛІЗАЦІЯ БАЗИ --- 
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -69,8 +69,24 @@ def init_db():
     conn.commit()
     conn.close()
 
+# --- ФУНКЦІЯ ПІДРАХУНКУ СТАТИСТИКИ --- 
+async def show_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    conn = sqlite3.connect(DB_FILE)
+    c = conn.cursor()
 
-# --- ГОЛОВНЕ МЕНЮ ---
+    # Отримати статистику
+    c.execute("SELECT key, value FROM stats")
+    stats = c.fetchall()
+    conn.close()
+
+    if not stats:
+        await update.message.reply_text("Немає статистики.")
+        return
+
+    stats_text = "\n".join([f"{key}: {value}" for key, value in stats])
+    await update.message.reply_text(f"📊 Статистика:\n\n{stats_text}")
+
+# --- ГОЛОВНЕ МЕНЮ --- 
 def main_menu():
     return ReplyKeyboardMarkup(
         [
@@ -81,18 +97,15 @@ def main_menu():
         resize_keyboard=True,
     )
 
-
-# --- ДОБАВИТИ СЛОВО ---
+# --- ДОБАВИТИ СЛОВО --- 
 async def add_word_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Введіть слово англійською:")
     return ADD_EN
-
 
 async def add_word_en(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["en"] = update.message.text.strip()
     await update.message.reply_text("Введіть переклад українською:")
     return ADD_UA
-
 
 async def add_word_ua(update: Update, context: ContextTypes.DEFAULT_TYPE):
     en = context.user_data["en"]
@@ -108,8 +121,7 @@ async def add_word_ua(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Слово додано: {en} → {ua}", reply_markup=main_menu())
     return ConversationHandler.END
 
-
-# --- ВИДАЛЕННЯ ---
+# --- ВИДАЛЕННЯ --- 
 async def delete_word(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -126,7 +138,6 @@ async def delete_word(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     await update.message.reply_text("Виберіть слово для видалення:", reply_markup=InlineKeyboardMarkup(keyboard))
 
-
 async def delete_word_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -140,8 +151,7 @@ async def delete_word_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     await query.edit_message_text("✅ Слово видалено.")
 
-
-# --- ПОКАЗАТИ ВСІ СЛОВА ---
+# --- ПОКАЗАТИ ВСІ СЛОВА --- 
 async def show_words(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -156,8 +166,7 @@ async def show_words(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = "\n".join([f"{en} → {ua}" for en, ua in words])
     await update.message.reply_text("📚 Ваш словник:\n\n" + text)
 
-
-# --- ВІКТОРИНА ---
+# --- ВІКТОРИНА --- 
 async def quiz_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -185,93 +194,7 @@ async def quiz_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return QUIZ
 
-
-async def quiz_question(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    level = update.message.text.strip()
-    if level not in ["1", "2", "3"]:
-        await update.message.reply_text("Оберіть 1, 2 або 3.")
-        return QUIZ
-
-    context.user_data["quiz_level"] = int(level)
-
-    words = context.user_data["quiz_words"]
-    word = random.choice(words)
-    context.user_data["quiz_word"] = word
-
-    en, ua = word
-    direction = context.user_data["quiz_direction"]
-
-    if direction == "EN-UA":
-        question, answer = en, ua
-    else:
-        question, answer = ua, en
-
-    context.user_data["quiz_answer"] = answer
-
-    if int(level) in [1, 2]:
-        options = [answer]
-        while len(options) < (2 if level == "1" else 4):
-            opt = random.choice(words)
-            opt = opt[1] if direction == "EN-UA" else opt[0]
-            if opt not in options:
-                options.append(opt)
-        random.shuffle(options)
-
-        keyboard = [[InlineKeyboardButton(opt, callback_data=opt)] for opt in options]
-        await update.message.reply_text(
-            f"🔎 Перекладіть: {question}",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-        )
-    else:
-        await update.message.reply_text(f"🔎 Перекладіть: {question}")
-        return QUIZ_INPUT
-
-    return ConversationHandler.END
-
-
-async def quiz_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    answer = query.data
-    correct = context.user_data["quiz_answer"]
-
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("UPDATE stats SET value = value + 1 WHERE key='total_answers'")
-    if answer == correct:
-        c.execute("UPDATE stats SET value = value + 1 WHERE key='correct_answers'")
-        conn.commit()
-        conn.close()
-        await query.edit_message_text(f"✅ Правильно! {correct}")
-    else:
-        conn.commit()
-        conn.close()
-        await query.edit_message_text(f"❌ Неправильно. Правильна відповідь: {correct}")
-
-
-async def quiz_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    answer = update.message.text.strip()
-    correct = context.user_data["quiz_answer"]
-
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute("UPDATE stats SET value = value + 1 WHERE key='total_answers'")
-    if answer.lower() == correct.lower():
-        c.execute("UPDATE stats SET value = value + 1 WHERE key='correct_answers'")
-        conn.commit()
-        conn.close()
-        await update.message.reply_text(f"✅ Правильно! {correct}", reply_markup=main_menu())
-    else:
-        conn.commit()
-        conn.close()
-        await update.message.reply_text(
-            f"❌ Неправильно. Правильна відповідь: {correct}", reply_markup=main_menu()
-        )
-    return ConversationHandler.END
-
-
-# --- СЛОВО ДНЯ ---
+# --- СЛОВО ДНЯ --- 
 async def send_daily_word(context: ContextTypes.DEFAULT_TYPE):
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
@@ -297,11 +220,9 @@ async def send_daily_word(context: ContextTypes.DEFAULT_TYPE):
                 en, ua = word
                 await context.bot.send_message(user_id, f"{en} → {ua}")
 
-
-# --- ГОЛОВНА ФУНКЦІЯ ---
+# --- ГОЛОВНА ФУНКЦІЯ --- 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Вітаю! Я ваш віртуальний помічник.", reply_markup=main_menu())
-
 
 def main():
     # Ініціалізація БД
@@ -347,7 +268,6 @@ def main():
     application.job_queue.run_daily(send_daily_word, time=time(10, 0))
 
     application.run_polling()
-
 
 if __name__ == "__main__":
     main()
