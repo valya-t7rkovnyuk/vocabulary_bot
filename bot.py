@@ -307,7 +307,7 @@ def main():
     # Ініціалізація БД
     init_db()
 
-    application = Application.builder().token("YOUR_BOT_TOKEN").build()
+    application = Application.builder().token("8246569607:AAEaLgo6bLYTUV3oq98mRrXWn58XWKbJT48").build()
 
     # Старт /help команда
     application.add_handler(CommandHandler("start", start))
