@@ -409,7 +409,7 @@ application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
 @flask_app.route("/webhook", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), application.bot)
-    asyncio.create_task(application.process_update(update))
+    asyncio.run(application.process_update(update))   # ← Виправлено
     return "ok", 200
 
 
