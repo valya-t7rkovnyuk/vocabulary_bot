@@ -409,8 +409,7 @@ application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
 @flask_app.route("/webhook", methods=["POST"])
 def webhook():
     update = Update.de_json(request.get_json(force=True), application.bot)
-    # Process update asynchronously in PTB
-    asyncio.get_event_loop().create_task(application.process_update(update))
+    asyncio.create_task(application.process_update(update))
     return "ok", 200
 
 
@@ -418,13 +417,12 @@ if __name__ == "__main__":
     init_db()
 
     async def bootstrap():
-        # initialize and start PTB application
         await application.initialize()
         await application.start()
-        # set webhook after app.start()
         await application.bot.set_webhook(f"{WEBHOOK_URL}/webhook")
         logger.info("Webhook set to %s/webhook", WEBHOOK_URL)
 
     asyncio.get_event_loop().run_until_complete(bootstrap())
-    # Run Flask server for Render
+
+    # Run Flask (does not block PTB)
     flask_app.run(host="0.0.0.0", port=PORT)
